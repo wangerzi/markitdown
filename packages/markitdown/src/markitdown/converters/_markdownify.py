@@ -104,7 +104,6 @@ class _CustomMarkdownify(markdownify.MarkdownConverter):
         Supports categorized storage in subfolders by document name
         """
         alt = el.attrs.get("alt", None) or ""
-        # src = el.attrs.get("src", None) or ""
         src = el.attrs.get("src", None) or el.attrs.get("data-src", None) or ""
         title = el.attrs.get("title", None) or ""
         title_part = ' "%s"' % title.replace('"', r"\"") if title else ""
@@ -142,29 +141,23 @@ class _CustomMarkdownify(markdownify.MarkdownConverter):
                 if hasattr(self, 'conversion_name') and self.conversion_name:
                     # If conversion_name exists, create subfolder
                     output_dir = os.path.join(self.image_output_dir, self.conversion_name)
-                    print(f"[DEBUG] Using subfolder for image: {output_dir}")
                 else:
                     # Otherwise use base directory
                     output_dir = self.image_output_dir
-                    print(f"[DEBUG] Using base directory for image: {output_dir}")
                 
                 # Ensure directory exists
                 os.makedirs(output_dir, exist_ok=True)
-                print(f"[DEBUG] Ensuring directory exists: {output_dir}")
                 
                 # Save image file
                 filepath = os.path.join(output_dir, filename)
                 with open(filepath, "wb") as f:
                     f.write(image_data)
-                print(f"[DEBUG] Image saved to: {filepath}")
                 
                 # Update src to relative path
                 src = os.path.join(output_dir, filename).replace("\\", "/")
-                print(f"[DEBUG] Updated image path to: {src}")
                 
             except Exception as e:
                 error_msg = f"Error saving image: {str(e)}"
-                print(f"[ERROR] {error_msg}", file=sys.stderr)
                 import traceback
                 traceback.print_exc(file=sys.stderr)
                 # If extraction fails, revert to original truncating behavior
@@ -174,7 +167,7 @@ class _CustomMarkdownify(markdownify.MarkdownConverter):
         # Process other data URIs that are not images (truncate them)
         elif src.startswith("data:") and not self.options.get("keep_data_uris", False):
             src = src.split(",")[0] + "..."
-            
+
         # Return Markdown format image reference
         return f"![{alt}]({src}{title_part})"
 
