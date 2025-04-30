@@ -23,7 +23,7 @@ class _CustomMarkdownify(markdownify.MarkdownConverter):
         # Set default values for image-related options
         self.image_output_dir = options.get("image_output_dir", "assets")
         self.conversion_name = options.get("conversion_name")
-        
+
         # Apply basic options
         options["heading_style"] = options.get("heading_style", markdownify.ATX)
         options["keep_data_uris"] = options.get("keep_data_uris", False)
@@ -155,6 +155,10 @@ class _CustomMarkdownify(markdownify.MarkdownConverter):
                 
                 # Update src to relative path
                 src = os.path.join(output_dir, filename).replace("\\", "/")
+
+                # If alt text is empty, use the image filename (without extension) as alt text
+                if not alt:
+                    alt = f"image_{hashname}"
                 
             except Exception as e:
                 error_msg = f"Error saving image: {str(e)}"

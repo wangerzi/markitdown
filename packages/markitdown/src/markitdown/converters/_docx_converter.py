@@ -1,6 +1,9 @@
 import sys
 import os
+import re
+import unicodedata
 from typing import BinaryIO, Any
+from io import BytesIO
 
 from ._html_converter import HtmlConverter
 from ..converter_utils.docx.pre_process import pre_process_docx
@@ -51,6 +54,35 @@ class DocxConverter(HtmlConverter):
                 return True
 
         return False
+    
+    def _sanitize_filename(self, filename: str) -> str:
+        """
+        Sanitize a filename by removing or replacing problematic characters.
+        
+        Args:
+            filename: The original filename
+            
+        Returns:
+            A sanitized filename safe for filesystem use
+        """
+        # Step 1: Normalize unicode characters
+        filename = unicodedata.normalize('NFKD', filename)
+        
+        # Step 2: Remove invalid characters and replace spaces with underscores
+        # Keep alphanumeric characters, underscores, hyphens, and periods
+        sanitized = re.sub(r'[^\w\-\.]', '_', filename)
+        
+        # Step 3: Collapse multiple underscores
+        sanitized = re.sub(r'_+', '_', sanitized)
+        
+        # Step 4: Remove leading/trailing underscores
+        sanitized = sanitized.strip('_')
+        
+        # Step 5: Ensure we have a valid filename (default if empty)
+        if not sanitized:
+            sanitized = "unnamed"
+        
+        return sanitized
 
     def _get_document_name(self, stream_info: StreamInfo) -> str:
         """
@@ -61,24 +93,21 @@ class DocxConverter(HtmlConverter):
             basename = os.path.basename(stream_info.filename)
             name, _ = os.path.splitext(basename)
             if name:
-                print(f"[DEBUG] Extracted document name from filename: {name}")
-                return name
+                return self._sanitize_filename(name)
         
         # If local_path exists, try to extract from local path
         if stream_info.local_path:
             basename = os.path.basename(stream_info.local_path)
             name, _ = os.path.splitext(basename)
             if name:
-                print(f"[DEBUG] Extracted document name from local_path: {name}")
-                return name
+                return self._sanitize_filename(name)
                 
         # If URL exists, try to extract from URL
         if stream_info.url:
             basename = os.path.basename(stream_info.url)
             name, _ = os.path.splitext(basename)
             if name:
-                print(f"[DEBUG] Extracted document name from URL: {name}")
-                return name
+                return self._sanitize_filename(name)
         
         # Default name
         return "docx_document"
@@ -88,10 +117,7 @@ class DocxConverter(HtmlConverter):
         file_stream: BinaryIO,
         stream_info: StreamInfo,
         **kwargs: Any,  # Options to pass to the converter
-    ) -> DocumentConverterResult:
-        print(f"[DEBUG] DocxConverter.convert called with kwargs: {kwargs}")
-        print(f"[DEBUG] StreamInfo: filename={stream_info.filename}, local_path={stream_info.local_path}, url={stream_info.url}")
-        
+    ) -> DocumentConverterResult:     
         # Check dependencies
         if _dependency_exc_info is not None:
             raise MissingDependencyException(
@@ -110,7 +136,6 @@ class DocxConverter(HtmlConverter):
         if "conversion_name" not in kwargs:
             conversion_name = self._get_document_name(stream_info)
             kwargs["conversion_name"] = conversion_name
-            print(f"[DEBUG] Setting conversion_name to: {conversion_name}")
 
         style_map = kwargs.get("style_map", None)
         pre_process_stream = pre_process_docx(file_stream)
@@ -124,7 +149,6 @@ class DocxConverter(HtmlConverter):
             extension=".html"
         )
         
-        print(f"[DEBUG] Calling HTML converter with parameters: conversion_name={kwargs.get('conversion_name')}")
         # Use io.BytesIO to create binary stream
         from io import BytesIO
         return self._html_converter.convert(
