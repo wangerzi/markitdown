@@ -27,7 +27,7 @@ class _CustomMarkdownify(markdownify.MarkdownConverter):
         # Apply basic options
         options["heading_style"] = options.get("heading_style", markdownify.ATX)
         options["keep_data_uris"] = options.get("keep_data_uris", False)
-        
+
         # Initialize parent class
         super().__init__(**options)
 
@@ -107,62 +107,66 @@ class _CustomMarkdownify(markdownify.MarkdownConverter):
         src = el.attrs.get("src", None) or el.attrs.get("data-src", None) or ""
         title = el.attrs.get("title", None) or ""
         title_part = ' "%s"' % title.replace('"', r"\"") if title else ""
-        
+
         # If in inline mode and not preserved, return alt text
-        if (
-            convert_as_inline
-            and el.parent.name not in self.options.get("keep_inline_images_in", [])
+        if convert_as_inline and el.parent.name not in self.options.get(
+            "keep_inline_images_in", []
         ):
             return alt
 
         # Process data URI format images
-        if src.startswith("data:image") and not self.options.get("keep_data_uris", False):
+        if src.startswith("data:image") and not self.options.get(
+            "keep_data_uris", False
+        ):
             try:
                 # Parse MIME type
                 mime_type = src.split(";")[0].replace("data:", "")
-                
+
                 # Get file extension
                 ext = {
                     "image/png": ".png",
                     "image/jpeg": ".jpg",
                     "image/jpg": ".jpg",
-                    "image/gif": ".gif"
+                    "image/gif": ".gif",
                 }.get(mime_type, ".png")
-                
+
                 # Decode base64 data
                 encoded = src.split(",")[1]
                 image_data = base64.b64decode(encoded)
-                
+
                 # Generate unique filename
                 hashname = hashlib.sha256(image_data).hexdigest()[:8]
                 filename = f"image_{hashname}{ext}"
-                
+
                 # Determine output directory
-                if hasattr(self, 'conversion_name') and self.conversion_name:
+                if hasattr(self, "conversion_name") and self.conversion_name:
                     # If conversion_name exists, create subfolder
-                    output_dir = os.path.join(self.image_output_dir, self.conversion_name)
+                    output_dir = os.path.join(
+                        self.image_output_dir, self.conversion_name
+                    )
                 else:
                     # Otherwise use base directory
                     output_dir = self.image_output_dir
-                
+
                 # Ensure directory exists
                 os.makedirs(output_dir, exist_ok=True)
-                
+
                 # Save image file
                 filepath = os.path.join(output_dir, filename)
                 with open(filepath, "wb") as f:
                     f.write(image_data)
-                
+
                 # Update src to relative path
                 src = os.path.join(output_dir, filename).replace("\\", "/")
 
                 # If alt text is empty, use the image filename (without extension) as alt text
                 if not alt:
                     alt = f"image_{hashname}"
-                
+
             except Exception as e:
                 error_msg = f"Error saving image: {str(e)}"
                 import traceback
+
                 traceback.print_exc(file=sys.stderr)
                 # If extraction fails, revert to original truncating behavior
                 src = src.split(",")[0] + "..."
