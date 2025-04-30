@@ -3,6 +3,7 @@ import os
 import re
 import base64
 import hashlib
+import unicodedata
 from typing import BinaryIO, Any, Dict, List, Tuple
 from io import BytesIO
 import json
@@ -59,6 +60,35 @@ class DocxConverter(HtmlConverter):
 
         return False
 
+    def _sanitize_filename(self, filename: str) -> str:
+        """
+        Sanitize a filename by removing or replacing problematic characters.
+
+        Args:
+            filename: The original filename
+
+        Returns:
+            A sanitized filename safe for filesystem use
+        """
+        # Step 1: Normalize unicode characters
+        filename = unicodedata.normalize("NFKD", filename)
+
+        # Step 2: Remove invalid characters and replace spaces with underscores
+        # Keep alphanumeric characters, underscores, hyphens, and periods
+        sanitized = re.sub(r"[^\w\-\.]", "_", filename)
+
+        # Step 3: Collapse multiple underscores
+        sanitized = re.sub(r"_+", "_", sanitized)
+
+        # Step 4: Remove leading/trailing underscores
+        sanitized = sanitized.strip("_")
+
+        # Step 5: Ensure we have a valid filename (default if empty)
+        if not sanitized:
+            sanitized = "unnamed"
+
+        return sanitized
+
     def _get_document_name(self, stream_info: StreamInfo) -> str:
         """
         Extract document name from StreamInfo and sanitize it
@@ -68,21 +98,13 @@ class DocxConverter(HtmlConverter):
             basename = os.path.basename(stream_info.filename)
             name, _ = os.path.splitext(basename)
             if name:
-                return name
+                return self._sanitize_filename(name)
 
         # If local_path exists, try to extract from local path
         if stream_info.local_path:
             basename = os.path.basename(stream_info.local_path)
             name, _ = os.path.splitext(basename)
             if name:
-                return name
-
-        # If URL exists, try to extract from URL
-        if stream_info.url:
-            basename = os.path.basename(stream_info.url)
-            name, _ = os.path.splitext(basename)
-            if name:
-                print(f"[DEBUG] Extracted document name from URL: {name}")
                 return name
 
         # Default name
