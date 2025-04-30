@@ -61,7 +61,6 @@ class HtmlConverter(DocumentConverter):
             webpage_text = _CustomMarkdownify(**kwargs).convert_soup(soup)
 
         assert isinstance(webpage_text, str)
-        converter = _CustomMarkdownify(image_output_dir="assets")
         # remove leading and trailing \n
         webpage_text = webpage_text.strip()
 
