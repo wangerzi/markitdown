@@ -115,7 +115,7 @@ class _CustomMarkdownify(markdownify.MarkdownConverter):
         ):
             return alt
 
-        # Process data URI format images -- Update from here
+        # Process data URI format images
         if src.startswith("data:image") and not self.options.get("keep_data_uris", False):
             try:
                 # Parse MIME type
