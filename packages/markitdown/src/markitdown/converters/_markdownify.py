@@ -104,7 +104,8 @@ class _CustomMarkdownify(markdownify.MarkdownConverter):
         Supports categorized storage in subfolders by document name
         """
         alt = el.attrs.get("alt", None) or ""
-        src = el.attrs.get("src", None) or ""
+        # src = el.attrs.get("src", None) or ""
+        src = el.attrs.get("src", None) or el.attrs.get("data-src", None) or ""
         title = el.attrs.get("title", None) or ""
         title_part = ' "%s"' % title.replace('"', r"\"") if title else ""
         
@@ -166,8 +167,14 @@ class _CustomMarkdownify(markdownify.MarkdownConverter):
                 print(f"[ERROR] {error_msg}", file=sys.stderr)
                 import traceback
                 traceback.print_exc(file=sys.stderr)
+                # If extraction fails, revert to original truncating behavior
+                src = src.split(",")[0] + "..."
                 return f"![{alt}](image_error.png)  <!-- {error_msg} -->"
-                
+
+        # Process other data URIs that are not images (truncate them)
+        elif src.startswith("data:") and not self.options.get("keep_data_uris", False):
+            src = src.split(",")[0] + "..."
+            
         # Return Markdown format image reference
         return f"![{alt}]({src}{title_part})"
 
