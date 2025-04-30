@@ -1,5 +1,9 @@
 import re
 import markdownify
+import os
+import base64
+import hashlib
+import sys
 
 from typing import Any, Optional
 from urllib.parse import quote, unquote, urlparse, urlunparse
@@ -16,9 +20,15 @@ class _CustomMarkdownify(markdownify.MarkdownConverter):
     """
 
     def __init__(self, **options: Any):
+        # Set default values for image-related options
+        self.image_output_dir = options.get("image_output_dir", "assets")
+        self.conversion_name = options.get("conversion_name")
+        
+        # Apply basic options
         options["heading_style"] = options.get("heading_style", markdownify.ATX)
         options["keep_data_uris"] = options.get("keep_data_uris", False)
-        # Explicitly cast options to the expected type if necessary
+        
+        # Initialize parent class
         super().__init__(**options)
 
     def convert_hn(
@@ -89,23 +99,77 @@ class _CustomMarkdownify(markdownify.MarkdownConverter):
         convert_as_inline: Optional[bool] = False,
         **kwargs,
     ) -> str:
-        """Same as usual converter, but removes data URIs"""
-
+        """
+        Process image elements, save data URI format images to filesystem
+        Supports categorized storage in subfolders by document name
+        """
         alt = el.attrs.get("alt", None) or ""
         src = el.attrs.get("src", None) or ""
         title = el.attrs.get("title", None) or ""
         title_part = ' "%s"' % title.replace('"', r"\"") if title else ""
+        
+        # If in inline mode and not preserved, return alt text
         if (
             convert_as_inline
-            and el.parent.name not in self.options["keep_inline_images_in"]
+            and el.parent.name not in self.options.get("keep_inline_images_in", [])
         ):
             return alt
 
-        # Remove dataURIs
-        if src.startswith("data:") and not self.options["keep_data_uris"]:
-            src = src.split(",")[0] + "..."
-
-        return "![%s](%s%s)" % (alt, src, title_part)
+        # Process data URI format images
+        if src.startswith("data:image") and not self.options.get("keep_data_uris", False):
+            try:
+                # Parse MIME type
+                mime_type = src.split(";")[0].replace("data:", "")
+                
+                # Get file extension
+                ext = {
+                    "image/png": ".png",
+                    "image/jpeg": ".jpg",
+                    "image/jpg": ".jpg",
+                    "image/gif": ".gif"
+                }.get(mime_type, ".png")
+                
+                # Decode base64 data
+                encoded = src.split(",")[1]
+                image_data = base64.b64decode(encoded)
+                
+                # Generate unique filename
+                hashname = hashlib.sha256(image_data).hexdigest()[:8]
+                filename = f"image_{hashname}{ext}"
+                
+                # Determine output directory
+                if hasattr(self, 'conversion_name') and self.conversion_name:
+                    # If conversion_name exists, create subfolder
+                    output_dir = os.path.join(self.image_output_dir, self.conversion_name)
+                    print(f"[DEBUG] Using subfolder for image: {output_dir}")
+                else:
+                    # Otherwise use base directory
+                    output_dir = self.image_output_dir
+                    print(f"[DEBUG] Using base directory for image: {output_dir}")
+                
+                # Ensure directory exists
+                os.makedirs(output_dir, exist_ok=True)
+                print(f"[DEBUG] Ensuring directory exists: {output_dir}")
+                
+                # Save image file
+                filepath = os.path.join(output_dir, filename)
+                with open(filepath, "wb") as f:
+                    f.write(image_data)
+                print(f"[DEBUG] Image saved to: {filepath}")
+                
+                # Update src to relative path
+                src = os.path.join(output_dir, filename).replace("\\", "/")
+                print(f"[DEBUG] Updated image path to: {src}")
+                
+            except Exception as e:
+                error_msg = f"Error saving image: {str(e)}"
+                print(f"[ERROR] {error_msg}", file=sys.stderr)
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+                return f"![{alt}](image_error.png)  <!-- {error_msg} -->"
+                
+        # Return Markdown format image reference
+        return f"![{alt}]({src}{title_part})"
 
     def convert_soup(self, soup: Any) -> str:
         return super().convert_soup(soup)  # type: ignore
