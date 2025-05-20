@@ -1,7 +1,13 @@
 # Install
 
+境外：
 ```bash
 pip install 'git+https://github.com/wangerzi/markitdown.git#egg=markitdown&subdirectory=packages/markitdown[all]'
+```
+
+境内：
+```bash
+pip install 'git+https://gitee.com/wangerzi/markitdown.git#egg=markitdown&subdirectory=packages/markitdown[all]'
 ```
 
 # MarkItDown
