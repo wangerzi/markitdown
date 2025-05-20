@@ -1,3 +1,9 @@
+# Install
+
+```bash
+pip install 'git+https://github.com/wangerzi/markitdown.git#egg=markitdown&subdirectory=packages/markitdown[all]'
+```
+
 # MarkItDown
 
 [![PyPI](https://img.shields.io/pypi/v/markitdown.svg)](https://pypi.org/project/markitdown/)
