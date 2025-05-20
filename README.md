@@ -1,5 +1,9 @@
 # Install
 
+```bash
+conda create -n markitdown python=3.12
+```
+
 境外：
 ```bash
 pip install 'git+https://github.com/wangerzi/markitdown.git#egg=markitdown&subdirectory=packages/markitdown[all]'
